@@ -1,6 +1,9 @@
 import osmnx as ox
 import networkx as nx
 from itertools import combinations
+import contextily as ctx
+from shapely.geometry import Point, LineString
+import geopandas as gpd
 
 from matplotlib import pyplot as plt
 
@@ -59,16 +62,69 @@ else:
 	print("Le graphe n'est pas eulérien.")
 	euler_path = None
 
-fig, ax = ox.plot_graph(G, show=False, close=False)
+# grab the x/y for every node in the route
+route_xy   = [(G.nodes[n]['x'], G.nodes[n]['y']) for n in euler_path]
+route_line = LineString(route_xy)
 
-# Tracer le circuit si disponible
-if euler_path:
-	ox.plot_graph_route(G, euler_path, route_linewidth=2, ax=ax, show=False, close=False)
+# point for the start
+start_pt   = Point(lon, lat)
 
-# 6. Marquer le point de départ (la mairie)
-x, y = G.nodes[start_node]['x'], G.nodes[start_node]['y']
-ax.scatter(x, y, c='red', s=80, marker='o', label='Départ : Mairie', zorder=5)
+# GeoDataFrames in WGS84
+gdf_route = gpd.GeoDataFrame(
+	{'geometry': [route_line]},
+	crs="EPSG:4326"
+)
+gdf_start = gpd.GeoDataFrame(
+	{'geometry': [start_pt]},
+	crs="EPSG:4326"
+)
 
-# 7. Afficher la légende et la carte
-ax.legend()
+# reproject to Web Mercator
+gdf_route = gdf_route.to_crs(epsg=3857)
+gdf_start = gdf_start.to_crs(epsg=3857)
+
+# ——————————————————————————————————————————————
+# 3) (Optional) also pull in all the graph’s edges as a backdrop
+#    for a bit of street fuzz behind your highlight
+nodes, edges = ox.graph_to_gdfs(G, nodes=False, edges=True)
+edges = edges.to_crs(epsg=3857)
+
+# ——————————————————————————————————————————————
+# 4) Plot everything over a tile basemap
+
+fig, ax = plt.subplots(figsize=(10, 10))
+
+# light grey background streets
+edges.plot(ax=ax, linewidth=0.5, edgecolor="#aaaaaa", zorder=1)
+
+# your Eulerian tour, thicker & brighter
+gdf_route.plot(
+	ax=ax,
+	linewidth=3,
+	alpha=0.9,
+	color="royalblue",
+	zorder=3,
+	label="Circuit eulérien"
+)
+
+# start marker
+gdf_start.plot(
+	ax=ax,
+	marker="*",
+	markersize=100,
+	color="crimson",
+	zorder=4,
+	label="Départ : Mairie"
+)
+
+# add the web tiles underneath
+ctx.add_basemap(
+	ax,
+	source=ctx.providers.CartoDB.Positron,  # or Stamen.Terrain, Stamen.TonerLite, etc.
+	zoom=14
+)
+
+ax.axis("off")
+ax.legend(frameon=True, loc="lower left")
+plt.tight_layout()
 plt.show()
