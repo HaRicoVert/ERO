@@ -1,10 +1,35 @@
+import os
 import osmnx as ox
 import networkx as nx
-
+import pickle
+import numpy as np
 from matplotlib import pyplot as plt
 
-# 1. Télécharger le graphe routier de Montréal
-G_directed = ox.graph_from_place("Montreal, Quebec, Canada", network_type="drive", retain_all=True)
+# ----------------------------
+# Fonction pour dessiner des flèches régulièrement sur le chemin
+# ----------------------------
+def draw_arrows_on_path(G, path, ax, step=20, arrow_length=20, color="blue"):
+	for i in range(0, len(path) - 1, step):
+		u = path[i]
+		v = path[i + 1]
+
+		x1, y1 = G.nodes[u]['x'], G.nodes[u]['y']
+		x2, y2 = G.nodes[v]['x'], G.nodes[v]['y']
+
+		dx, dy = x2 - x1, y2 - y1
+		norm = np.hypot(dx, dy)
+		if norm == 0:
+			continue
+
+		dx, dy = dx / norm, dy / norm
+		ax.arrow(x1, y1, dx * arrow_length, dy * arrow_length,
+				 head_width=10, head_length=10, fc=color, ec=color, zorder=4)
+
+# ----------------------------
+# 1. Télécharger un graphe plus petit (quartier)
+# ----------------------------
+print("Step 1")
+G_directed = ox.graph_from_place("Ville-Marie, Montreal, Quebec, Canada", network_type="drive")
 G = G_directed.to_undirected()
 
 print("Step 2")
@@ -12,18 +37,28 @@ print("Step 2")
 odd_nodes = [node for node, degree in G.degree() if degree % 2 != 0]
 
 print("Step 3")
-# 3. Calculer les distances minimales entre chaque paire de sommets impairs
-shortest_paths = {}
-for u in odd_nodes:
-	lengths = nx.single_source_dijkstra_path_length(G, u, weight="length")
-	for v in odd_nodes:
-		if u != v and v in lengths:
-			if u not in shortest_paths:
-				shortest_paths[u] = {}
-			shortest_paths[u][v] = lengths[v]
+# 3. Calculer les distances minimales entre paires de sommets impairs (avec cache)
+shortest_paths_file = "shortest_paths.pkl"
+
+if not os.path.exists(shortest_paths_file):
+	print("Calcul des plus courts chemins entre sommets impairs...")
+	all_lengths = dict(nx.all_pairs_dijkstra_path_length(G, weight="length"))
+	shortest_paths = {}
+	for u in odd_nodes:
+		for v in odd_nodes:
+			if u != v and v in all_lengths[u]:
+				if u not in shortest_paths:
+					shortest_paths[u] = {}
+				shortest_paths[u][v] = all_lengths[u][v]
+	with open(shortest_paths_file, "wb") as f:
+		pickle.dump(shortest_paths, f)
+else:
+	print("Chargement des distances depuis cache...")
+	with open(shortest_paths_file, "rb") as f:
+		shortest_paths = pickle.load(f)
 
 print("Step 4")
-# 4. Construire le graphe complet entre les sommets impairs
+# 4. Construire le graphe complet pondéré entre les sommets impairs
 odd_G = nx.Graph()
 for u in shortest_paths:
 	for v in shortest_paths[u]:
@@ -39,7 +74,6 @@ for u, v in matching:
 	path = nx.shortest_path(G, source=u, target=v, weight="length")
 	for i in range(len(path) - 1):
 		u1, v1 = path[i], path[i + 1]
-		# Utiliser la première arête existante entre u1 et v1
 		edge_data = list(G[u1][v1].values())[0]
 		G.add_edge(u1, v1, **edge_data)
 
@@ -53,21 +87,23 @@ print("Step 8")
 if nx.is_eulerian(G):
 	euler_circuit = list(nx.eulerian_circuit(G, source=start_node))
 	euler_path = [u for u, v in euler_circuit] + [euler_circuit[-1][1]]
-	ox.plot_graph_route(G, euler_path, route_linewidth=4)
 else:
 	print("Le graphe n'est pas eulérien.")
 	euler_path = None
 
+# ----------------------------
+# 9. Affichage du graphe avec flèches
+# ----------------------------
+print("Step 9 : Affichage")
 fig, ax = ox.plot_graph(G, show=False, close=False)
 
-# Tracer le circuit si disponible
 if euler_path:
 	ox.plot_graph_route(G, euler_path, route_linewidth=2, ax=ax, show=False, close=False)
+	draw_arrows_on_path(G, euler_path, ax, step=20)
 
-# 6. Marquer le point de départ (la mairie)
+# Marquer le point de départ
 x, y = G.nodes[start_node]['x'], G.nodes[start_node]['y']
 ax.scatter(x, y, c='yellow', s=80, marker='o', label='Départ : Mairie', zorder=5)
 
-# 7. Afficher la légende et la carte
 ax.legend()
 plt.show()
