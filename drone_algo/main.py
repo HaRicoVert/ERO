@@ -99,7 +99,6 @@ fig, ax = ox.plot_graph(G, show=False, close=False)
 
 if euler_path:
 	ox.plot_graph_route(G, euler_path, route_linewidth=2, ax=ax, show=False, close=False)
-	draw_arrows_on_path(G, euler_path, ax, step=20)
 
 # Marquer le point de départ
 x, y = G.nodes[start_node]['x'], G.nodes[start_node]['y']
