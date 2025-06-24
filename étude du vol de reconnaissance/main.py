@@ -3,7 +3,7 @@ import random
 import osmnx
 
 import graph
-from algo import chinese_postman
+from utilities.algo import chinese_postman
 
 G_directed = osmnx.graph_from_place(
     "Ville-Marie, Montreal, Quebec, Canada", network_type="drive"

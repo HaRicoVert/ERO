@@ -1,6 +1,8 @@
 import contextily as ctx
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import osmnx as ox
+from shapely.geometry import Point, LineString
 
 
 def visualize_snow_level(G, start_node):
@@ -41,11 +43,6 @@ def visualize_snow_level(G, start_node):
 
 
 def visualize_euler_path_with_arrows(G, euler_path, start_node, step=20):
-    import contextily as ctx
-    import matplotlib.pyplot as plt
-    import geopandas as gpd
-    from shapely.geometry import Point, LineString
-
     # Convertir tous les points en WGS84
     coords = [(G.nodes[n]["x"], G.nodes[n]["y"]) for n in euler_path if n in G.nodes]
     gdf_line = gpd.GeoDataFrame(geometry=[LineString(coords)], crs="EPSG:4326").to_crs(

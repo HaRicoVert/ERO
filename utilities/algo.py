@@ -5,7 +5,6 @@ from collections import defaultdict
 from typing import List
 
 import networkx
-import networkx as nx
 
 
 def chinese_postman(G_directed: networkx.MultiDiGraph, start_node):
@@ -17,11 +16,11 @@ def chinese_postman(G_directed: networkx.MultiDiGraph, start_node):
 
     print("Step 2")
     # Calculer les distances minimales entre paires de sommets impairs
-    shortest_paths_file = "shortest_paths.pkl"
+    shortest_paths_file = "../shortest_paths.pkl"
 
     if not os.path.exists(shortest_paths_file):
         print("Calcul des plus courts chemins entre sommets impairs...")
-        all_lengths = dict(nx.all_pairs_dijkstra_path_length(G, weight="length"))
+        all_lengths = dict(networkx.all_pairs_dijkstra_path_length(G, weight="length"))
         shortest_paths = {}
         for u in odd_nodes:
             for v in odd_nodes:
@@ -38,19 +37,19 @@ def chinese_postman(G_directed: networkx.MultiDiGraph, start_node):
 
     print("Step 3")
     # Construire le graphe complet pondéré entre les sommets impairs
-    odd_G = nx.Graph()
+    odd_G = networkx.Graph()
     for u in shortest_paths:
         for v in shortest_paths[u]:
             odd_G.add_edge(u, v, weight=shortest_paths[u][v])
 
     print("Step 4")
     # Calculer le matching parfait de poids minimal
-    matching = nx.algorithms.matching.min_weight_matching(odd_G, weight="weight")
+    matching = networkx.algorithms.matching.min_weight_matching(odd_G, weight="weight")
 
     print("Step 5")
     # Ajouter les chemins du matching dans le graphe original
     for u, v in matching:
-        path = nx.shortest_path(G, source=u, target=v, weight="length")
+        path = networkx.shortest_path(G, source=u, target=v, weight="length")
         for i in range(len(path) - 1):
             u1, v1 = path[i], path[i + 1]
             edge_data = list(G[u1][v1].values())[0]
@@ -58,8 +57,8 @@ def chinese_postman(G_directed: networkx.MultiDiGraph, start_node):
 
     print("Step 6")
     # 8. Générer le circuit eulérien depuis la mairie
-    if nx.is_eulerian(G):
-        euler_circuit = list(nx.eulerian_circuit(G, source=start_node))
+    if networkx.is_eulerian(G):
+        euler_circuit = list(networkx.eulerian_circuit(G, source=start_node))
         euler_path = [u for u, v in euler_circuit] + [euler_circuit[-1][1]]
     else:
         print("Le graphe n'est pas eulérien.")
