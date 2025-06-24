@@ -27,17 +27,21 @@ for u, v, k, data in graphe_outremont.edges(keys=True, data=True):
     data["snow_level"] = randint(0, 15)
 
 
-# Créer la fonction de couleur
 def get_edge_colors(G):
     colors = []
-    gray_color = (1, 1, 1, 1.0)  # RGBA pour gris
+    gray_color = (1, 1, 1, 1.0)  # RGBA pour blanc
+
+    green_yellow = mcolors.LinearSegmentedColormap.from_list(
+        "green_yellow", ["green", "yellow"]
+    )
+
     for u, v, k, data in G.edges(keys=True, data=True):
         snow_level = data["snow_level"]
         if snow_level < 2.5 or snow_level > 15:
             colors.append(gray_color)
         else:
             normalized = (snow_level - 2.5) / (15 - 2.5)
-            colors.append(plt.cm.Greens(0.3 + 0.7 * normalized))
+            colors.append(green_yellow(normalized))
     return colors
 
 
