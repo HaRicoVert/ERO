@@ -1,74 +1,27 @@
+import random
 import osmnx as ox
-import networkx as nx
-from itertools import combinations
+import visualization.graph as vi
+import drone_algo.chinese_postman as co
+from visualization.graph import visualize_snow_level
 
-from matplotlib import pyplot as plt
+# On telecharge de graphe routier de Montreal
+G_directed = ox.graph_from_place("Ville-Marie, Montreal, Quebec, Canada", network_type="drive")
 
-# 1. Télécharger le graphe routier de Montréal
-G_directed = ox.graph_from_place("Plateau Mont-Royal, Montreal, Quebec, Canada", network_type="drive")
-G = G_directed.to_undirected()
-
-print("Step 2")
-# 2. Identifier les sommets de degré impair
-odd_nodes = [node for node, degree in G.degree() if degree % 2 != 0]
-
-print("Step 3")
-# 3. Calculer les distances minimales entre chaque paire de sommets impairs
-shortest_paths = {}
-for u in odd_nodes:
-	lengths = nx.single_source_dijkstra_path_length(G, u, weight="length")
-	for v in odd_nodes:
-		if u != v and v in lengths:
-			if u not in shortest_paths:
-				shortest_paths[u] = {}
-			shortest_paths[u][v] = lengths[v]
-
-print("Step 4")
-# 4. Construire le graphe complet entre les sommets impairs
-odd_G = nx.Graph()
-for u in shortest_paths:
-	for v in shortest_paths[u]:
-		odd_G.add_edge(u, v, weight=shortest_paths[u][v])
-
-print("Step 5")
-# 5. Calculer le matching parfait de poids minimal
-matching = nx.algorithms.matching.min_weight_matching(odd_G, weight="weight")
-
-print("Step 6")
-# 6. Ajouter les chemins du matching dans le graphe original
-for u, v in matching:
-	path = nx.shortest_path(G, source=u, target=v, weight="length")
-	for i in range(len(path) - 1):
-		u1, v1 = path[i], path[i + 1]
-		# Utiliser la première arête existante entre u1 et v1
-		edge_data = list(G[u1][v1].values())[0]
-		G.add_edge(u1, v1, **edge_data)
-
-print("Step 7")
-# 7. Définir le point de départ à la Mairie de Montréal
+# Définir le point de départ à la Mairie de Montréal
 lat, lon = ox.geocode("275 Rue Notre-Dame Est, Montréal, QC")
 start_node = ox.distance.nearest_nodes(G_directed, lon, lat)
 
-print("Step 8")
-# 8. Générer le circuit eulérien depuis la mairie
-if nx.is_eulerian(G):
-	euler_circuit = list(nx.eulerian_circuit(G, source=start_node))
-	euler_path = [u for u, v in euler_circuit] + [euler_circuit[-1][1]]
-	ox.plot_graph_route(G, euler_path, route_linewidth=4)
-else:
-	print("Le graphe n'est pas eulérien.")
-	euler_path = None
+vi.visualize_snow_level(G_directed, start_node)
 
-fig, ax = ox.plot_graph(G, show=False, close=False)
+# On ajoute une quantite de neige aleatoire (de 0 a 15) sur les arretes du graph
+for u, v, k, data in G_directed.edges(keys=True, data=True):
+	cm_neige = random.randint(0, 15)
+	data["cm_neige"] = cm_neige
 
-# Tracer le circuit si disponible
-if euler_path:
-	ox.plot_graph_route(G, euler_path, route_linewidth=2, ax=ax, show=False, close=False)
 
-# 6. Marquer le point de départ (la mairie)
-x, y = G.nodes[start_node]['x'], G.nodes[start_node]['y']
-ax.scatter(x, y, c='red', s=80, marker='o', label='Départ : Mairie', zorder=5)
 
-# 7. Afficher la légende et la carte
-ax.legend()
-plt.show()
+drone_path = co.chinese_postman(G_directed, start_node)
+
+vi.visualize_euler_path_with_arrows(G_directed, drone_path, start_node)
+
+vi.visualize_snow_level(G_directed, start_node)
