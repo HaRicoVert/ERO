@@ -1,4 +1,6 @@
 import os
+import random
+
 import osmnx as ox
 import networkx as nx
 import pickle
@@ -6,30 +8,16 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 # ----------------------------
-# Fonction pour dessiner des flèches régulièrement sur le chemin
-# ----------------------------
-def draw_arrows_on_path(G, path, ax, step=20, arrow_length=20, color="blue"):
-	for i in range(0, len(path) - 1, step):
-		u = path[i]
-		v = path[i + 1]
-
-		x1, y1 = G.nodes[u]['x'], G.nodes[u]['y']
-		x2, y2 = G.nodes[v]['x'], G.nodes[v]['y']
-
-		dx, dy = x2 - x1, y2 - y1
-		norm = np.hypot(dx, dy)
-		if norm == 0:
-			continue
-
-		dx, dy = dx / norm, dy / norm
-		ax.arrow(x1, y1, dx * arrow_length, dy * arrow_length,
-				 head_width=10, head_length=10, fc=color, ec=color, zorder=4)
-
-# ----------------------------
 # 1. Télécharger un graphe plus petit (quartier)
 # ----------------------------
 print("Step 1")
 G_directed = ox.graph_from_place("Ville-Marie, Montreal, Quebec, Canada", network_type="drive")
+
+for u, v, k, data in G_directed.edges(keys=True, data=True):
+	# On ajoute la neige
+	cm_neige = random.randint(0, 15)
+	data["cm_neige"] = cm_neige
+
 G = G_directed.to_undirected()
 
 print("Step 2")
@@ -91,18 +79,31 @@ else:
 	print("Le graphe n'est pas eulérien.")
 	euler_path = None
 
-# ----------------------------
-# 9. Affichage du graphe avec flèches
-# ----------------------------
-print("Step 9 : Affichage")
-fig, ax = ox.plot_graph(G, show=False, close=False)
 
-if euler_path:
-	ox.plot_graph_route(G, euler_path, route_linewidth=2, ax=ax, show=False, close=False)
+import contextily as ctx
+
+# Définir les couleurs d’arêtes selon la neige
+edge_colors = []
+for u, v, data in G.edges(data=True):
+	neige = data.get("cm_neige", 0)
+	if 2.5 <= neige <= 15:
+		edge_colors.append("red")
+	else:
+		edge_colors.append("blue")
+
+# Convertir le graphe en GeoDataFrame pour le fond OSM
+gdf_nodes, gdf_edges = ox.graph_to_gdfs(G)
+
+# Tracer sans fond
+fig, ax = ox.plot_graph(G, edge_color=edge_colors, edge_linewidth=1.5, node_size=0, show=False, close=False)
+
+# Ajouter le fond cartographique (OpenStreetMap via contextily)
+ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, crs=gdf_edges.crs.to_string())
 
 # Marquer le point de départ
 x, y = G.nodes[start_node]['x'], G.nodes[start_node]['y']
 ax.scatter(x, y, c='yellow', s=80, marker='o', label='Départ : Mairie', zorder=5)
 
 ax.legend()
+plt.tight_layout()
 plt.show()
