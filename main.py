@@ -5,8 +5,9 @@ import osmnx as ox
 import chinese_postman as co
 import graph as vi
 
-# On telecharge de graphe routier de Montreal
-G_directed = ox.graph_from_place("Ville-Marie, Montreal, Quebec, Canada", network_type="drive")
+G_directed = ox.graph_from_place(
+    "Ville-Marie, Montreal, Quebec, Canada", network_type="drive"
+)
 
 # Définir le point de départ à la Mairie de Montréal
 lat, lon = ox.geocode("275 Rue Notre-Dame Est, Montréal, QC")
