@@ -1,8 +1,9 @@
 import random
+
 import osmnx as ox
-import visualization.graph as vi
-import drone_algo.chinese_postman as co
-from visualization.graph import visualize_snow_level
+
+import chinese_postman as co
+import graph as vi
 
 # On telecharge de graphe routier de Montreal
 G_directed = ox.graph_from_place("Ville-Marie, Montreal, Quebec, Canada", network_type="drive")
@@ -15,10 +16,8 @@ vi.visualize_snow_level(G_directed, start_node)
 
 # On ajoute une quantite de neige aleatoire (de 0 a 15) sur les arretes du graph
 for u, v, k, data in G_directed.edges(keys=True, data=True):
-	cm_neige = random.randint(0, 15)
-	data["cm_neige"] = cm_neige
-
-
+    cm_neige = random.randint(0, 15)
+    data["cm_neige"] = cm_neige
 
 drone_path = co.chinese_postman(G_directed, start_node)
 
