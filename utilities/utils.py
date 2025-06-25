@@ -3,10 +3,8 @@ import random
 
 import contextily
 import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
 import osmnx
 from dotenv import load_dotenv
-from matplotlib.cm import ScalarMappable
 from matplotlib.lines import Line2D
 
 
@@ -78,6 +76,13 @@ def generate_random_snow_levels(graph, min_level=0, max_level=15):
         data["snow_level"] = random.uniform(min_level, max_level)
 
 
+custom_cmap = mcolors.LinearSegmentedColormap.from_list(
+    "custom_cmap",
+    [(0, 0, 0.5), (0, 0, 1)],
+    N=256,
+)
+
+
 def get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
     colors = []
     black_color = (0, 0, 0, 1.0)
@@ -88,7 +93,7 @@ def get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
             colors.append(black_color)
         else:
             colors.append(
-                plt.cm.RdYlBu(
+                custom_cmap(
                     (snow_level - MIN_SNOW_LEVEL) / (MAX_SNOW_LEVEL - MIN_SNOW_LEVEL)
                 )
             )
@@ -96,7 +101,7 @@ def get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
 
 
 def set_legend(plot, graph):
-    fig, ax = plot.subplots(figsize=(40, 80))
+    fig, ax = plot.subplots(figsize=(40, 80), dpi=60)
 
     # D'abord tracer le graphe
     edge_colors = get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL)
@@ -110,46 +115,34 @@ def set_legend(plot, graph):
         close=False,
     )
 
-    # Puis ajouter la carte OSM en arrière-plan (elle se placera derrière)
     contextily.add_basemap(
         ax,
         crs=graph.graph["crs"],
         source=contextily.providers.OpenStreetMap.Mapnik,
-        alpha=0.7,  # Transparence pour voir les routes
+        alpha=0.7,
     )
-
-    sm = ScalarMappable(
-        norm=mcolors.Normalize(vmin=MIN_SNOW_LEVEL, vmax=MAX_SNOW_LEVEL),
-        cmap=plot.cm.RdYlBu,
-    )
-    sm.set_array([])
-
-    cbar = plot.colorbar(sm, ax=ax, shrink=0.8, aspect=20)
-    cbar.set_label("Niveau de neige (cm)", rotation=270, labelpad=20)
 
     legend_elements = [
         Line2D(
             [0],
             [0],
             color="black",
-            lw=3,
+            lw=8,
             label=f"< {MIN_SNOW_LEVEL} cm ou > {MAX_SNOW_LEVEL} cm (pas de déneigement)",
         ),
         Line2D(
             [0],
             [0],
-            color=plot.cm.RdYlBu(0.2),
-            lw=3,
-            label=f"{MIN_SNOW_LEVEL} cm (déneigement requis)",
-        ),
-        Line2D(
-            [0],
-            [0],
-            color=plot.cm.RdYlBu(1.0),
-            lw=3,
-            label=f"{MAX_SNOW_LEVEL} cm (déneigement requis)",
+            color=custom_cmap(1),
+            lw=8,
+            label=f"{MIN_SNOW_LEVEL} cm - {MAX_SNOW_LEVEL} cm (niveau de neige)",
         ),
     ]
 
-    ax.legend(handles=legend_elements, loc="upper right")
-    plot.title("Réseau routier d'Outremont - Niveaux de neige")
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=50)
+    plot.title(
+        "Réseau routier d'Outremont - Niveaux de neige",
+        fontsize=100,
+        fontweight="bold",
+        pad=20,
+    )
