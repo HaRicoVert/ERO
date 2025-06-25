@@ -44,8 +44,7 @@ generate_random_snow_levels(sectors_combined, min_level=0, max_level=15)
 
 graph = networkx.compose(sectors_combined, montreal_filtered)
 
-# Projeter et consolider le graphe filtré
 graph = osmnx.project_graph(graph)
-graph = osmnx.consolidate_intersections(graph, tolerance=20)
+graph = osmnx.consolidate_intersections(graph, tolerance=15, rebuild_graph=True)
 set_legend(plt, graph)
 plt.show()

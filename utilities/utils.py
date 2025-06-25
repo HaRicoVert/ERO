@@ -101,7 +101,7 @@ def get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
 
 
 def set_legend(plot, graph):
-    fig, ax = plot.subplots(figsize=(40, 80), dpi=80)
+    fig, ax = plot.subplots(figsize=(40, 80), dpi=120)
 
     # D'abord tracer le graphe
     edge_colors = get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL)
