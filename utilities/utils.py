@@ -3,6 +3,7 @@ import random
 
 import contextily
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import osmnx
 from dotenv import load_dotenv
 from matplotlib.lines import Line2D
@@ -76,14 +77,7 @@ def generate_random_snow_levels(graph, min_level=0, max_level=15):
         data["snow_level"] = random.uniform(min_level, max_level)
 
 
-custom_cmap = mcolors.LinearSegmentedColormap.from_list(
-    "custom_cmap",
-    [(0, 0, 0.5), (0, 0, 1)],
-    N=256,
-)
-
-
-def get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
+def get_edge_colors(graph, color, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
     colors = []
     black_color = (0, 0, 0, 1.0)
 
@@ -93,18 +87,42 @@ def get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL):
             colors.append(black_color)
         else:
             colors.append(
-                custom_cmap(
-                    (snow_level - MIN_SNOW_LEVEL) / (MAX_SNOW_LEVEL - MIN_SNOW_LEVEL)
-                )
+                color((snow_level - MIN_SNOW_LEVEL) / (MAX_SNOW_LEVEL - MIN_SNOW_LEVEL))
             )
     return colors
 
 
-def set_legend(plot, graph):
-    fig, ax = plot.subplots(figsize=(40, 40), dpi=80)
+red_flash = mcolors.LinearSegmentedColormap.from_list(
+    "red_flash",
+    [(0.3, 0, 0), (1, 0, 0)],
+    N=256,
+)
+
+blue = mcolors.LinearSegmentedColormap.from_list(
+    "blue",
+    [(0, 0, 0.5), (0, 0, 1)],
+    N=256,
+)
+
+green_neon = mcolors.LinearSegmentedColormap.from_list(
+    "green_neon",
+    [(0, 0.5, 0), (0.2, 1, 0.2)],
+    N=256,
+)
+
+colors = [red_flash, blue, green_neon]
+
+
+def generate_legend(graphs, colors):
+    for graph, color in zip(graphs, colors):
+        set_legend(graph, color)
+
+
+def set_legend(graph, colormap):
+    fig, ax = plt.subplots(figsize=(40, 40), dpi=80)
 
     # D'abord tracer le graphe
-    edge_colors = get_edge_colors(graph, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL)
+    edge_colors = get_edge_colors(graph, colormap, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL)
     osmnx.plot_graph(
         graph,
         ax=ax,
@@ -133,14 +151,14 @@ def set_legend(plot, graph):
         Line2D(
             [0],
             [0],
-            color=custom_cmap(1),
+            color=colormap(1),
             lw=8,
             label=f"{MIN_SNOW_LEVEL} cm - {MAX_SNOW_LEVEL} cm (niveau de neige)",
         ),
     ]
 
     ax.legend(handles=legend_elements, loc="upper left", fontsize=50)
-    plot.title(
+    plt.title(
         "Réseau routier d'Outremont - Niveaux de neige",
         fontsize=100,
         fontweight="bold",
