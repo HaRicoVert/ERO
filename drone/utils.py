@@ -151,7 +151,8 @@ def generate_plot_snow_level(graph, colormap):
         ax=ax,
         edge_color=edge_colors,
         edge_linewidth=3,
-        node_size=0,
+        node_size=10,
+        node_color="red",
         show=False,
         close=False,
     )
@@ -177,6 +178,15 @@ def generate_plot_snow_level(graph, colormap):
             color=colormap(1),
             lw=8,
             label=f"{MIN_SNOW_LEVEL} cm - {MAX_SNOW_LEVEL} cm (niveau de neige)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="red",
+            lw=0,
+            markersize=10,
+            label="Nœuds (routes)",
         ),
     ]
 
