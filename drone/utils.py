@@ -1,4 +1,3 @@
-import math
 import random
 
 import contextily
@@ -250,11 +249,43 @@ def afficher_chemin(graph, chemin):
     plt.show()
 
 
-def calcul_cout(vehicule, distance_totale_km):
-    km_par_jour = vehicule.average_speed * 24
-    nb_jours = math.ceil(distance_totale_km / km_par_jour)
-    cout_temps = nb_jours * vehicule.cost_per_day
-    cout_distance = distance_totale_km * vehicule.cost_per_km
-    cout_total = cout_temps + cout_distance
+import math
 
-    return nb_jours, cout_total
+
+def calcul_cout(vehicule, distance_totale_km):
+    if hasattr(vehicule, "cost_for_first_8hours"):
+        temps_total_heures = distance_totale_km / vehicule.average_speed
+        heures_facturees = math.ceil(temps_total_heures)
+
+        cout_temps = 0
+        heures_restantes = heures_facturees
+
+        while heures_restantes > 0:
+            if heures_restantes >= 8:
+                cout_temps += vehicule.cost_for_first_8hours
+                heures_restantes -= 8
+
+                if heures_restantes >= 8:
+                    cout_temps += vehicule.cost_for_next8hours
+                    heures_restantes -= 8
+                elif heures_restantes > 0:
+                    cout_temps += vehicule.cost_for_next8hours * (heures_restantes / 8)
+                    heures_restantes = 0
+            else:
+                cout_temps += vehicule.cost_for_first_8hours * (heures_restantes / 8)
+                heures_restantes = 0
+
+        cout_distance = distance_totale_km * vehicule.cost_per_km
+        cout_fixe = getattr(vehicule, "cost_per_day", 0)
+        cout_total = cout_temps + cout_distance + cout_fixe
+        nb_jours = math.ceil(heures_facturees / 24)
+
+        return nb_jours, cout_total
+
+    else:
+        km_par_jour = vehicule.average_speed * 24
+        nb_jours = math.ceil(distance_totale_km / km_par_jour)
+        cout_temps = nb_jours * vehicule.cost_per_day
+        cout_distance = distance_totale_km * vehicule.cost_per_km
+        cout_total = cout_temps + cout_distance
+        return nb_jours, cout_total
