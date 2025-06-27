@@ -1,11 +1,13 @@
 import networkx
 import osmnx
-from matplotlib import pyplot as plt
 
 from drone.utils import (
+    show_plot_before_scan,
+    afficher_chemin,
+    parcours_euler,
     generate_random_snow_levels,
-    blue,
     generate_plot_snow_level,
+    blue,
     connect_sectors,
 )
 
@@ -13,7 +15,7 @@ from drone.utils import (
 def generate_graph():
     print("Chargement du graphe de Montreal sans les banlieues")
     montreal_graph = osmnx.graph_from_place(
-        "Montreal, Quebec, Canada", network_type="drive"
+        "Montreal, Quebec, Canada", network_type="drive", simplify=False
     )
     sectors = [
         "Outremont, Montreal, Quebec, Canada",
@@ -26,7 +28,9 @@ def generate_graph():
     sectors_graphs = {}
     print("Chargement des secteurs")
     for sector in sectors:
-        sectors_graphs[sector] = osmnx.graph_from_place(sector, network_type="drive")
+        sectors_graphs[sector] = osmnx.graph_from_place(
+            sector, network_type="drive", simplify=False
+        )
 
     print("Projection des graphes de secteurs")
     projected_sectors = {}
@@ -38,23 +42,19 @@ def generate_graph():
     first_graph = list(projected_sectors.values())[0]
     sectors_combined.graph.update(first_graph.graph)
 
-    print("Génération des niveaux de neige aléatoires pour les secteurs")
-    generate_random_snow_levels(sectors_combined, 0, 15)
-
     print("Simplification du graphe")
-    return osmnx.consolidate_intersections(
+    graph = osmnx.consolidate_intersections(
         connect_sectors(sectors_combined, montreal_graph),
         tolerance=15,
         rebuild_graph=True,
     )
 
+    return osmnx.simplify_graph(graph)
+
 
 if __name__ == "__main__":
     graph = generate_graph()
+    show_plot_before_scan(graph)
+    afficher_chemin(graph, parcours_euler(graph))
+    generate_random_snow_levels(graph)
     generate_plot_snow_level(graph, blue)
-    plt.show()
-
-    print(f"Taille: {graph.number_of_nodes()} nœuds, {graph.number_of_edges()} arêtes")
-    print(
-        f"Nombre d'arrêtes avec neige: {sum(1 for _, _, data in graph.edges(data=True) if 15 >= data['snow_level'] >= 2.5)}"
-    )

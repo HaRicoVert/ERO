@@ -11,14 +11,9 @@ from common.utils import MIN_SNOW_LEVEL, MAX_SNOW_LEVEL
 
 
 def connect_sectors(sectors_graph, montreal_graph):
-    """
-    Connecte les composantes non connexes du graphe des secteurs
-    en utilisant les routes du graphe de Montréal
-    """
-    # Projeter le graphe de Montréal
     montreal_projected = osmnx.project_graph(montreal_graph)
 
-    # Trouver les composantes faiblement connexes (pour graphes dirigés)
+    # Composantes faiblement connectées
     components = list(networkx.weakly_connected_components(sectors_graph))
 
     if len(components) <= 1:
@@ -94,15 +89,10 @@ def connect_sectors(sectors_graph, montreal_graph):
                         sectors_graph.add_edge(n1, n2, **edge_data)
 
             except networkx.NetworkXNoPath:
-                # Si pas de chemin, connexion directe
+                # Si y'a pas de chemin, ça veut dire que c'est une connexion directe
                 sectors_graph.add_edge(node1, node2, length=min_dist, snow_level=0)
 
     return sectors_graph
-
-
-def generate_random_snow_levels(graph, min_level=0, max_level=15):
-    for u, v, k, data in graph.edges(keys=True, data=True):
-        data["snow_level"] = random.uniform(min_level, max_level)
 
 
 def get_edge_colors(graph, color, min_snow_level, max_snow_level):
@@ -110,6 +100,10 @@ def get_edge_colors(graph, color, min_snow_level, max_snow_level):
     black_color = (0, 0, 0, 1.0)
 
     for u, v, k, data in graph.edges(keys=True, data=True):
+        if "snow_level" not in data:
+            colors.append(black_color)
+            continue
+
         snow_level = data["snow_level"]
         if snow_level < min_snow_level or snow_level > max_snow_level:
             colors.append(black_color)
@@ -118,6 +112,12 @@ def get_edge_colors(graph, color, min_snow_level, max_snow_level):
                 color((snow_level - min_snow_level) / (max_snow_level - min_snow_level))
             )
     return colors
+
+
+def generate_random_snow_levels(graph, min_level=0, max_level=30):
+    for u, v, k, data in graph.edges(keys=True, data=True):
+        if data.get("snow_level") is None:
+            data["snow_level"] = random.uniform(min_level, max_level)
 
 
 red_flash = mcolors.LinearSegmentedColormap.from_list(
@@ -141,18 +141,58 @@ green_neon = mcolors.LinearSegmentedColormap.from_list(
 colors = [red_flash, blue, green_neon]
 
 
-def generate_plot_snow_level(graph, colormap):
+def show_plot_before_scan(graph):
+    print("Affichage du graphe de Montréal sans les banlieues")
     fig, ax = plt.subplots(figsize=(60, 60), dpi=100)
 
-    # D'abord tracer le graphe
-    edge_colors = get_edge_colors(graph, colormap, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL)
     osmnx.plot_graph(
         graph,
         ax=ax,
-        edge_color=edge_colors,
+        edge_color="black",
         edge_linewidth=3,
         node_size=10,
         node_color="red",
+        show=False,
+        close=False,
+    )
+
+    contextily.add_basemap(
+        ax,
+        crs=graph.graph["crs"],
+        source=contextily.providers.OpenStreetMap.Mapnik,
+        alpha=0.7,
+    )
+
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            color="black",
+            lw=8,
+            label=f"Routes",
+        ),
+    ]
+
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=50)
+    plt.title(
+        "Réseau routier de Montréal sans les banlieues avant analyse du drône",
+        fontsize=60,
+        fontweight="bold",
+        pad=20,
+    )
+
+    plt.show()
+
+
+def generate_plot_snow_level(graph, colormap):
+    fig, ax = plt.subplots(figsize=(60, 60), dpi=100)
+
+    osmnx.plot_graph(
+        graph,
+        ax=ax,
+        edge_color=get_edge_colors(graph, colormap, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL),
+        edge_linewidth=2,
+        node_size=0,
         show=False,
         close=False,
     )
@@ -197,3 +237,103 @@ def generate_plot_snow_level(graph, colormap):
         fontweight="bold",
         pad=20,
     )
+
+    plt.show()
+
+
+def parcours_euler(montreal_graph):
+    graph = montreal_graph.to_undirected()
+
+    if networkx.is_eulerian(graph):
+        return list(networkx.eulerian_circuit(graph))
+
+    elif networkx.is_semieulerian(graph):
+        return list(networkx.eulerian_path(graph))
+
+    else:
+        print("Graphe non-eulérien - ajout d'arêtes minimales")
+
+        # On trouve les nœuds de degré impair
+        odd_nodes = [n for n in graph.nodes() if graph.degree(n) % 2 == 1]
+
+        # On crée un multigraphe pour rendre eulérien
+        MG = networkx.MultiGraph(graph)
+
+        # On couple les nœuds impairs par plus courts chemins
+        for i in range(0, len(odd_nodes) - 1, 2):
+            try:
+                path = networkx.shortest_path(
+                    graph, odd_nodes[i], odd_nodes[i + 1], weight="length"
+                )
+                # Dupliquer les arêtes du chemin
+                for j in range(len(path) - 1):
+                    MG.add_edge(path[j], path[j + 1])
+            except networkx.NetworkXNoPath:
+                continue
+
+        return list(networkx.eulerian_circuit(MG))
+
+
+def afficher_chemin(graph, chemin):
+    graph = graph.to_undirected()
+
+    fig, ax = plt.subplots(figsize=(15, 15))
+
+    contextily.add_basemap(
+        ax,
+        crs=graph.graph["crs"],
+        source=contextily.providers.OpenStreetMap.Mapnik,
+        alpha=0.7,
+    )
+
+    osmnx.plot_graph(
+        graph,
+        ax=ax,
+        show=False,
+        close=False,
+        node_color="lightblue",
+        node_size=1,
+        edge_color="lightgray",
+        edge_linewidth=0.5,
+    )
+
+    chemin_coords = []
+    for i, (u, v) in enumerate(chemin):
+        if i == 0:
+            chemin_coords.append([graph.nodes[u]["y"], graph.nodes[u]["x"]])
+        chemin_coords.append([graph.nodes[v]["y"], graph.nodes[v]["x"]])
+
+    for i, (u, v) in enumerate(chemin):
+        x1, y1 = graph.nodes[u]["x"], graph.nodes[u]["y"]
+        x2, y2 = graph.nodes[v]["x"], graph.nodes[v]["y"]
+        color = "yellow" if i == 0 else "red"
+        ax.annotate(
+            "",
+            xy=(x2, y2),
+            xytext=(x1, y1),
+            arrowprops=dict(arrowstyle="->", color=color, lw=1.5),
+        )
+
+    if chemin:
+        start_node = chemin[0][0]
+        end_node = chemin[-1][1]
+        ax.scatter(
+            graph.nodes[start_node]["x"],
+            graph.nodes[start_node]["y"],
+            c="green",
+            s=100,
+            marker="o",
+            label="Début",
+        )
+        ax.scatter(
+            graph.nodes[end_node]["x"],
+            graph.nodes[end_node]["y"],
+            c="blue",
+            s=100,
+            marker="s",
+            label="Fin",
+        )
+
+    ax.legend()
+    ax.set_title("Parcours Eulérien - Montréal")
+    plt.show()
