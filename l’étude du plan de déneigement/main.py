@@ -140,3 +140,6 @@ set_legend(graph, blue)
 plt.show()
 
 print(f"Taille: {graph.number_of_nodes()} nœuds, {graph.number_of_edges()} arêtes")
+print(
+    f"Nombre d'arrêtes avec neige: {sum(1 for _, _, data in graph.edges(data=True) if data['snow_level'] > 0)}"
+)
