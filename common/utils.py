@@ -1,6 +1,8 @@
 import os
 
+import networkx
 from dotenv import load_dotenv
+from matplotlib import colors as mcolors
 
 
 class Vehicule:
@@ -64,3 +66,40 @@ SNOWPLOW_TYPE_2 = Snowplow(
 
 MIN_SNOW_LEVEL = float(os.getenv("MIN_SNOW_LEVEL"))
 MAX_SNOW_LEVEL = float(os.getenv("MAX_SNOW_LEVEL"))
+
+red_flash = mcolors.LinearSegmentedColormap.from_list(
+    "red_flash",
+    [(0.3, 0, 0), (1, 0, 0)],
+    N=256,
+)
+
+blue = mcolors.LinearSegmentedColormap.from_list(
+    "blue",
+    [(0, 0, 0.5), (0, 0, 1)],
+    N=256,
+)
+
+green = mcolors.LinearSegmentedColormap.from_list(
+    "green",
+    [(0, 0.5, 0), (0.2, 1, 0.2)],
+    N=256,
+)
+
+purple = mcolors.LinearSegmentedColormap.from_list(
+    "purple",
+    [(0.3, 0, 0.5), (0.8, 0.2, 1)],
+    N=256,
+)
+
+orange = mcolors.LinearSegmentedColormap.from_list(
+    "orange",
+    [(0.5, 0.2, 0), (1, 0.6, 0)],
+    N=256,
+)
+
+colors = [red_flash, blue, green, purple, orange]
+
+
+def split_graph(graph):
+    components = networkx.connected_components(graph.to_undirected())
+    return [graph.subgraph(comp).copy() for comp in components]

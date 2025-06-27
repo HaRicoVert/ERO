@@ -1,7 +1,6 @@
 import random
 
 import contextily
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import networkx
 import osmnx
@@ -118,27 +117,7 @@ def generate_random_snow_levels(graph, min_level=0, max_level=30):
     for u, v, k, data in graph.edges(keys=True, data=True):
         if data.get("snow_level") is None:
             data["snow_level"] = random.uniform(min_level, max_level)
-
-
-red_flash = mcolors.LinearSegmentedColormap.from_list(
-    "red_flash",
-    [(0.3, 0, 0), (1, 0, 0)],
-    N=256,
-)
-
-blue = mcolors.LinearSegmentedColormap.from_list(
-    "blue",
-    [(0, 0, 0.5), (0, 0, 1)],
-    N=256,
-)
-
-green_neon = mcolors.LinearSegmentedColormap.from_list(
-    "green_neon",
-    [(0, 0.5, 0), (0.2, 1, 0.2)],
-    N=256,
-)
-
-colors = [red_flash, blue, green_neon]
+    return graph
 
 
 def show_plot_before_scan(graph):

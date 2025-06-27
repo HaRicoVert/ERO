@@ -1,13 +1,13 @@
 import networkx
 import osmnx
 
+from common.utils import blue
 from drone.utils import (
     show_plot_before_scan,
     afficher_chemin,
     parcours_euler,
     generate_random_snow_levels,
     generate_plot_snow_level,
-    blue,
 )
 
 
@@ -43,9 +43,11 @@ def generate_graph():
     )
 
 
+graph = generate_graph()
+graph = generate_random_snow_levels(graph)
+
+START_NODE = next(iter(graph.nodes()))
 if __name__ == "__main__":
-    graph = generate_graph()
     show_plot_before_scan(graph)
     afficher_chemin(graph, parcours_euler(graph))
-    generate_random_snow_levels(graph)
     generate_plot_snow_level(graph, blue)
