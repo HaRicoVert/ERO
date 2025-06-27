@@ -244,34 +244,53 @@ def generate_plot_snow_level(graph, colormap):
 def parcours_euler(montreal_graph):
     graph = montreal_graph.to_undirected()
 
-    if networkx.is_eulerian(graph):
-        return list(networkx.eulerian_circuit(graph))
+    # Trouver toutes les composantes connexes
+    components = list(networkx.connected_components(graph))
 
-    elif networkx.is_semieulerian(graph):
-        return list(networkx.eulerian_path(graph))
+    all_paths = []
 
-    else:
-        print("Graphe non-eulérien - ajout d'arêtes minimales")
+    for component in components:
+        subgraph = graph.subgraph(component).copy()
 
-        # On trouve les nœuds de degré impair
-        odd_nodes = [n for n in graph.nodes() if graph.degree(n) % 2 == 1]
+        if networkx.is_eulerian(subgraph):
+            path = list(networkx.eulerian_circuit(subgraph))
+            all_paths.extend(path)
 
-        # On crée un multigraphe pour rendre eulérien
-        MG = networkx.MultiGraph(graph)
+        elif networkx.is_semieulerian(subgraph):
+            path = list(networkx.eulerian_path(subgraph))
+            all_paths.extend(path)
 
-        # On couple les nœuds impairs par plus courts chemins
-        for i in range(0, len(odd_nodes) - 1, 2):
-            try:
-                path = networkx.shortest_path(
-                    graph, odd_nodes[i], odd_nodes[i + 1], weight="length"
-                )
-                # Dupliquer les arêtes du chemin
-                for j in range(len(path) - 1):
-                    MG.add_edge(path[j], path[j + 1])
-            except networkx.NetworkXNoPath:
-                continue
+        else:
+            print(
+                f"Composante non-eulérienne de taille {len(component)} - ajout d'arêtes"
+            )
 
-        return list(networkx.eulerian_circuit(MG))
+            # Nœuds de degré impair dans cette composante
+            odd_nodes = [n for n in subgraph.nodes() if subgraph.degree(n) % 2 == 1]
+
+            # Créer un multigraphe pour cette composante
+            MG = networkx.MultiGraph(subgraph)
+
+            # Coupler les nœuds impairs
+            for i in range(0, len(odd_nodes) - 1, 2):
+                try:
+                    path = networkx.shortest_path(
+                        subgraph, odd_nodes[i], odd_nodes[i + 1], weight="length"
+                    )
+                    for j in range(len(path) - 1):
+                        MG.add_edge(path[j], path[j + 1])
+                except networkx.NetworkXNoPath:
+                    continue
+
+            # Essayer de créer un circuit eulérien
+            if networkx.is_eulerian(MG):
+                path = list(networkx.eulerian_circuit(MG))
+                all_paths.extend(path)
+            elif networkx.is_semieulerian(MG):
+                path = list(networkx.eulerian_path(MG))
+                all_paths.extend(path)
+
+    return all_paths
 
 
 def afficher_chemin(graph, chemin):
@@ -311,7 +330,7 @@ def afficher_chemin(graph, chemin):
             "",
             xy=(x2, y2),
             xytext=(x1, y1),
-            arrowprops=dict(arrowstyle="->", color=color, lw=1.5),
+            arrowprops=dict(arrowstyle="->", color=color, lw=0.5),
         )
 
     if chemin:
@@ -336,4 +355,5 @@ def afficher_chemin(graph, chemin):
 
     ax.legend()
     ax.set_title("Parcours Eulérien - Montréal")
+    plt.tight_layout()
     plt.show()

@@ -8,15 +8,10 @@ from drone.utils import (
     generate_random_snow_levels,
     generate_plot_snow_level,
     blue,
-    connect_sectors,
 )
 
 
 def generate_graph():
-    print("Chargement du graphe de Montreal sans les banlieues")
-    montreal_graph = osmnx.graph_from_place(
-        "Montreal, Quebec, Canada", network_type="drive", simplify=False
-    )
     sectors = [
         "Outremont, Montreal, Quebec, Canada",
         "Verdun, Montreal, Quebec, Canada",
@@ -28,9 +23,7 @@ def generate_graph():
     sectors_graphs = {}
     print("Chargement des secteurs")
     for sector in sectors:
-        sectors_graphs[sector] = osmnx.graph_from_place(
-            sector, network_type="drive", simplify=False
-        )
+        sectors_graphs[sector] = osmnx.graph_from_place(sector, network_type="drive")
 
     print("Projection des graphes de secteurs")
     projected_sectors = {}
@@ -43,13 +36,11 @@ def generate_graph():
     sectors_combined.graph.update(first_graph.graph)
 
     print("Simplification du graphe")
-    graph = osmnx.consolidate_intersections(
-        connect_sectors(sectors_combined, montreal_graph),
+    return osmnx.consolidate_intersections(
+        sectors_combined,
         tolerance=15,
         rebuild_graph=True,
     )
-
-    return osmnx.simplify_graph(graph)
 
 
 if __name__ == "__main__":
