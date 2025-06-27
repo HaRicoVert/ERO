@@ -1,42 +1,13 @@
+import random
+
+import contextily
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import networkx
 import osmnx
-from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 
-from utilities.utils import (
-    set_legend,
-    blue,
-    generate_random_snow_levels,
-)
-
-print("Chargement du graphe de Montreal sans les banlieues")
-montreal_graph = osmnx.graph_from_place(
-    "Montreal, Quebec, Canada", network_type="drive"
-)
-sectors = [
-    "Outremont, Montreal, Quebec, Canada",
-    "Verdun, Montreal, Quebec, Canada",
-    "Anjou, Montreal, Quebec, Canada",
-    "Rivière-des-Prairies–Pointe-aux-Trembles, Montreal, Quebec, Canada",
-    "Le Plateau-Mont-Royal, Montreal, Quebec, Canada",
-]
-
-sectors_graphs = {}
-print("Chargement des secteurs")
-for sector in sectors:
-    sectors_graphs[sector] = osmnx.graph_from_place(sector, network_type="drive")
-
-print("Projection des graphes de secteurs")
-projected_sectors = {}
-for sector, graph in sectors_graphs.items():
-    projected_sectors[sector] = osmnx.project_graph(graph)
-
-print("Fusion des secteurs")
-sectors_combined = networkx.compose_all(list(projected_sectors.values()))
-first_graph = list(projected_sectors.values())[0]
-sectors_combined.graph.update(first_graph.graph)
-
-print("Génération des niveaux de neige aléatoires pour les secteurs")
-generate_random_snow_levels(sectors_combined, 0, 15)
+from common.utils import MIN_SNOW_LEVEL, MAX_SNOW_LEVEL
 
 
 def connect_sectors(sectors_graph, montreal_graph):
@@ -129,17 +100,90 @@ def connect_sectors(sectors_graph, montreal_graph):
     return sectors_graph
 
 
-graph = connect_sectors(sectors_combined, montreal_graph)
+def generate_random_snow_levels(graph, min_level=0, max_level=15):
+    for u, v, k, data in graph.edges(keys=True, data=True):
+        data["snow_level"] = random.uniform(min_level, max_level)
 
-print("Simplification du graphe")
-graph = osmnx.consolidate_intersections(graph, tolerance=15, rebuild_graph=True)
 
-set_legend(graph, blue)
-# graphs = [graph, graph.copy(), graph.copy()]
-# generate_legend([graph], [red_flash])
-plt.show()
+def get_edge_colors(graph, color, min_snow_level, max_snow_level):
+    colors = []
+    black_color = (0, 0, 0, 1.0)
 
-print(f"Taille: {graph.number_of_nodes()} nœuds, {graph.number_of_edges()} arêtes")
-print(
-    f"Nombre d'arrêtes avec neige: {sum(1 for _, _, data in graph.edges(data=True) if data['snow_level'] > 0)}"
+    for u, v, k, data in graph.edges(keys=True, data=True):
+        snow_level = data["snow_level"]
+        if snow_level < min_snow_level or snow_level > max_snow_level:
+            colors.append(black_color)
+        else:
+            colors.append(
+                color((snow_level - min_snow_level) / (max_snow_level - min_snow_level))
+            )
+    return colors
+
+
+red_flash = mcolors.LinearSegmentedColormap.from_list(
+    "red_flash",
+    [(0.3, 0, 0), (1, 0, 0)],
+    N=256,
 )
+
+blue = mcolors.LinearSegmentedColormap.from_list(
+    "blue",
+    [(0, 0, 0.5), (0, 0, 1)],
+    N=256,
+)
+
+green_neon = mcolors.LinearSegmentedColormap.from_list(
+    "green_neon",
+    [(0, 0.5, 0), (0.2, 1, 0.2)],
+    N=256,
+)
+
+colors = [red_flash, blue, green_neon]
+
+
+def generate_plot_snow_level(graph, colormap):
+    fig, ax = plt.subplots(figsize=(60, 60), dpi=100)
+
+    # D'abord tracer le graphe
+    edge_colors = get_edge_colors(graph, colormap, MIN_SNOW_LEVEL, MAX_SNOW_LEVEL)
+    osmnx.plot_graph(
+        graph,
+        ax=ax,
+        edge_color=edge_colors,
+        edge_linewidth=3,
+        node_size=0,
+        show=False,
+        close=False,
+    )
+
+    contextily.add_basemap(
+        ax,
+        crs=graph.graph["crs"],
+        source=contextily.providers.OpenStreetMap.Mapnik,
+        alpha=0.7,
+    )
+
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            color="black",
+            lw=8,
+            label=f"< {MIN_SNOW_LEVEL} cm ou > {MAX_SNOW_LEVEL} cm (pas de déneigement)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=colormap(1),
+            lw=8,
+            label=f"{MIN_SNOW_LEVEL} cm - {MAX_SNOW_LEVEL} cm (niveau de neige)",
+        ),
+    ]
+
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=50)
+    plt.title(
+        "Réseau routier de Montréal sans les banlieues - Niveaux de neige",
+        fontsize=60,
+        fontweight="bold",
+        pad=20,
+    )
