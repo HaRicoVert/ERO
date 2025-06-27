@@ -1,66 +1,152 @@
-## Donnees
+# Déneigement de Montréal – Projet ERO
 
-octobre -> avril
-3000 employes
-2000 chasses neige
-200000 tonnes de sel a placer sur le sol
-10000 km de route
-165M$ de budget
+**EPITA, Apping1_C – Groupe 01**
 
-### Couts :
+## Auteurs
 
-Drone:
-
-- 100 euro / jour
-- 0.01 euro / km
-
-Vehicules de denneigement :
-
-Type 1 :
-- 500 euro / jour
-- 1.1 euro / km
-- 1.1 euro / h les 8 premieres heures
-- 1.3 euro / h en dehors des 8 premieres heures
-- vitesse moyenne : 10km/h
-
-Type 2 :
-- 800 euro / jour
-- 1.3 euro / km
-- 1.3 euro / h les 8 premieres heures
-- 1.5 euro / h en dehors des 8 premieres heures
-- vitesse moyenne : 20km/h
+- **Rayann BOUHEDDOU**  
+- **Corentin DUPAIGNE**  
+- **Corentin GUINIOT-ALLOU**  
+- **Paul MONTAGNAC**  
+- **Esteban PAGIS**
 
 ---
 
-## Contraintes
+## Sommaire
 
--> respect du code de la route
--> les vehicules denneigent en un seul passage les routes a double sens
--> Potentiellement rajouter les conditions meterologiques si jamais on a du temps en plus mais pas demande dans le sujet
+- [Introduction](#introduction)  
+- [Donnée et périmètre d’étude](#donnée-et-périmètre-détude)  
+  - [Collecte et préparation des données](#collecte-et-préparation-des-données)  
+  - [Optimisation des itinéraires](#optimisation-des-itinéraires)  
+  - [Coût et performance de déneigement](#coût-et-performance-de-dénéigement)  
+- [Hypothèses et choix de modélisation](#hypothèses-et-choix-de-modélisation)  
+  - [Hypothèses relatives à la mission drone](#hypothèses-relatives-à-la-mission-drone)  
+  - [Hypothèses relatives à la mission déneigeuse](#hypothèses-relatives-à-la-mission-dénéigeuse)  
+- [Choix de modélisation et comparaison des scénarios](#choix-de-modélisation-et-comparaison-des-scénarios)  
+  - [Solutions retenues et indicateurs de performance](#solutions-retenues-et-indicateurs-de-performance)  
+  - [Comparaison des scénarios](#comparaison-des-scénarios)  
+- [Les limites du modèle](#les-limites-du-modèle)  
+  - [Points positifs](#points-positifs)
 
 ---
 
-## Objectifs
--> Proposer differentes solutions qui optimisent differentes variables, couts, temps, avec ou sans machine type 2.
+## Introduction
 
-Chaque modele doit essayer de reduire les couts, le temps de trajet du drone et des chasse neige le plus possible.
+Ce projet propose une approche algorithmique pour optimiser la gestion de l’enneigement à Montréal. Il repose sur la modélisation de deux missions:  
+- une mission **de surveillance** par drone
+- une mission **de déneigement** avec différents types de véhicules  
 
+Les deux missions sont représentées sous forme de graphes orientés, traités par le **problème du postier chinois dirigé (DCPP)**. Le projet est implémenté en Python, avec des outils de cartographie tels que **OSMnx**, **NetworkX** et **Matplotlib**.
 
-## TODOS
--> Convertir les routes de Montreal en graph oriente pondere
-    justification du graph oriente pondere :
-        - certaines routes ne sont pas a double sens (oriente)
-        - toutes les routes ne sont pas toutes autant enneige (pondere)
+---
 
--> Definir les variables optimisables
-voir ce cours du MIT pour comprendre : https://ocw.mit.edu/courses/6-251j-introduction-to-mathematical-programming-fall-2009/e191f18667dedc48774b5efc08a6d125_MIT6_251JF09_lec24.pdf
+## Donnée et périmètre d’étude
 
--> Poser le probleme mathematiquement sur feuille
+### Collecte et préparation des données
 
--> Rentrer les variables et donnees sous forme de matrices en python
+- Réseau routier de Montréal extrait via **OpenStreetMap** en mode **`drive`** (respect des sens de circulation)
+- Niveaux de neige simulés entre 0 et 15 cm pour chaque tronçon
+- Zone d’étude: 5 arrondissements de Montréal:
+  - Outremont
+  - Verdun
+  - Anjou
+  - Rivière-des-Prairies–Pointe-aux-Trembles
+  - Plateau-Mont-Royal
+- Les sous-graphes sont fusionnés et connectés via le graphe global de Montréal
 
--> Creer un algorithme optimiser en terme de temps et couts pour le trajet du drone
-    - il doit scanne tout montreal et donner des infos sur l'enneigement sur chacune des rues
+### Optimisation des itinéraires
 
--> Resoudre le ILP https://apmonitor.com/wiki/index.php/Main/IntegerProgramming
+- Utilisation du **DCPP** : chaque tronçon est parcouru au moins une fois, avec le respect des contraintes directionnelles
+- Graphe rendu par équilibrage des flux et ajout d’arcs
+- Visualisation cartographique avec niveaux de neige colorisés via un colormap
 
+### Coût et performance de déneigement
+
+| Paramètre                       | Super Drone | Véhicule Type I | Véhicule Type II |
+|--------------------------------|-------------|-----------------|------------------|
+| Coût fixe (€/jour)             | 100         | 500             | 800              |
+| Coût kilométrique (€/km)       | 0.01        | 1.10            | 1.30             |
+| Coût horaire (1<sup>ère</sup> 8h) (€/h) | –           | 1.10            | 1.30             |
+| Coût horaire (>8h) (€/h)       | –           | 1.30            | 1.50             |
+| Vitesse moyenne (km/h)         | –           | 10              | 20               |
+
+---
+
+## Hypothèses et choix de modélisation
+
+### Hypothèses relatives à la mission drone
+
+- Autonomie **illimitée**, vol à altitude constante.  
+- Aucune modélisation des effets du vent, obstacles, trafic aérien ou erreurs GPS.  
+- Positionnement parfait et absence totale de contraintes réglementaires.  
+- Terre modélisée comme **plane localement**.
+
+### Hypothèses relatives à la mission déneigeuse
+
+- Pas de contrainte liée au carburant, à l’usure, au trafic ou à la météo.  
+- Déneigement supposé **constant** et indépendant de l’épaisseur de neige.  
+- Respect parfait des **restrictions OSM** (virages, sens uniques, etc.).  
+- Calculs réalisés dans un référentiel **localement plan**.
+
+---
+
+## Choix de modélisation et comparaison des scénarios
+
+### Solutions retenues et indicateurs de performance
+
+- Modélisation par **graphe orienté enrichi** de données de neige.
+- Résolution via le **problème du postier chinois dirigé (DCPP)**.
+- Indicateurs :
+  - Distance totale
+  - Temps estimé
+  - Coût opérationnel (fixe + variable)
+
+### Comparaison des scénarios
+
+- **Déneigeuse Type II** : meilleure **rapidité**, mais **coût élevé**.  
+- **Déneigeuse Type I** : solution **économique**, mais **plus lente**.  
+- **Drone** : utile en **complément** pour la détection des zones critiques.
+
+---
+
+## Les limites du modèle
+
+### Points positifs
+
+- Modèle **reproductible** et **flexible**.  
+- Bonne **visualisation des résultats**.  
+- Intégration de **contraintes réalistes** tout en maintenant une complexité maîtrisée.  
+- Bonne séparation des missions de **surveillance** et de **déneigement**.
+
+---
+
+## Structure du projet
+
+```
+├── drone/
+│   ├── main.py
+│   └── utils.py
+├── common/
+│   └── utils.py
+├── .env
+└── README.md
+```
+
+---
+
+## Dépendances
+
+- `osmnx`  
+- `networkx`  
+- `matplotlib`  
+- `contextily`  
+- `dotenv`  
+- `python-dotenv`
+
+---
+
+## Lancement du projet
+
+```bash
+python3 main.py
+```
