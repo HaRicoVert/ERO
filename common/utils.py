@@ -9,6 +9,7 @@ class Vehicule:
     def __init__(self, cost_per_day, cost_per_km):
         self.cost_per_day = cost_per_day
         self.cost_per_km = cost_per_km
+        self.average_speed = 0
 
     def __str__(self):
         return f"Vehicule(cost={self.cost_per_day}, cost_per_km={self.cost_per_km})"
@@ -17,6 +18,7 @@ class Vehicule:
 class SuperDrone(Vehicule):
     def __init__(self, cost_per_day, cost_per_km):
         super().__init__(cost_per_day, cost_per_km)
+        self.average_speed = 60
 
     def __str__(self):
         return f"SuperDrone(cost={self.cost_per_day}, cost_per_km={self.cost_per_km})"

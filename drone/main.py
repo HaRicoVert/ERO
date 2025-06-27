@@ -1,13 +1,14 @@
 import networkx
 import osmnx
 
-from common.utils import blue
+from common.utils import blue, SUPER_DRONE
 from drone.utils import (
     show_plot_before_scan,
     afficher_chemin,
     parcours_euler,
     generate_random_snow_levels,
     generate_plot_snow_level,
+    calcul_cout,
 )
 
 
@@ -45,8 +46,16 @@ def generate_graph():
 
 graph = generate_graph()
 graph = generate_random_snow_levels(graph)
+distance = sum(data["length"] for u, v, data in graph.edges(data=True))
+distance = distance / 1000
+print(f"Taille du réseau routier {distance:.2f} km")
+nb_jours, cout_total = calcul_cout(
+    SUPER_DRONE,
+    distance,
+)
 
-START_NODE = next(iter(graph.nodes()))
+print(f"Coût total du drone : {cout_total:.2f} € pour {nb_jours:.2f} jours")
+
 if __name__ == "__main__":
     show_plot_before_scan(graph)
     afficher_chemin(graph, parcours_euler(graph))

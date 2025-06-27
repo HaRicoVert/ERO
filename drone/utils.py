@@ -1,3 +1,4 @@
+import math
 import random
 
 import contextily
@@ -7,91 +8,6 @@ import osmnx
 from matplotlib.lines import Line2D
 
 from common.utils import MIN_SNOW_LEVEL, MAX_SNOW_LEVEL
-
-
-def connect_sectors(sectors_graph, montreal_graph):
-    montreal_projected = osmnx.project_graph(montreal_graph)
-
-    # Composantes faiblement connectées
-    components = list(networkx.weakly_connected_components(sectors_graph))
-
-    if len(components) <= 1:
-        return sectors_graph
-
-    # Pour chaque paire de composantes, les connecter
-    for i in range(len(components) - 1):
-        comp1 = components[i]
-        comp2 = components[i + 1]
-
-        # Trouver les nœuds les plus proches entre les deux composantes
-        min_dist = float("inf")
-        best_pair = None
-
-        for node1 in comp1:
-            for node2 in comp2:
-                if (
-                    "x" in sectors_graph.nodes[node1]
-                    and "x" in sectors_graph.nodes[node2]
-                ):
-
-                    x1, y1 = (
-                        sectors_graph.nodes[node1]["x"],
-                        sectors_graph.nodes[node1]["y"],
-                    )
-                    x2, y2 = (
-                        sectors_graph.nodes[node2]["x"],
-                        sectors_graph.nodes[node2]["y"],
-                    )
-
-                    dist = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-
-                    if dist < min_dist:
-                        min_dist = dist
-                        best_pair = (node1, node2)
-
-        if best_pair:
-            # Trouver le chemin dans le graphe de Montréal
-            node1, node2 = best_pair
-
-            # Trouver les nœuds correspondants dans montreal_graph
-            nearest1 = osmnx.nearest_nodes(
-                montreal_projected,
-                sectors_graph.nodes[node1]["x"],
-                sectors_graph.nodes[node1]["y"],
-            )
-            nearest2 = osmnx.nearest_nodes(
-                montreal_projected,
-                sectors_graph.nodes[node2]["x"],
-                sectors_graph.nodes[node2]["y"],
-            )
-
-            try:
-                # Chemin le plus court
-                path = networkx.shortest_path(
-                    montreal_projected, nearest1, nearest2, weight="length"
-                )
-
-                # Ajouter le chemin au graphe des secteurs
-                for j in range(len(path) - 1):
-                    n1, n2 = path[j], path[j + 1]
-
-                    # Ajouter les nœuds du chemin
-                    if n1 not in sectors_graph:
-                        sectors_graph.add_node(n1, **montreal_projected.nodes[n1])
-                    if n2 not in sectors_graph:
-                        sectors_graph.add_node(n2, **montreal_projected.nodes[n2])
-
-                    # Ajouter l'arête avec snow_level=0
-                    if montreal_projected.has_edge(n1, n2):
-                        edge_data = montreal_projected.edges[n1, n2, 0].copy()
-                        edge_data["snow_level"] = 0
-                        sectors_graph.add_edge(n1, n2, **edge_data)
-
-            except networkx.NetworkXNoPath:
-                # Si y'a pas de chemin, ça veut dire que c'est une connexion directe
-                sectors_graph.add_edge(node1, node2, length=min_dist, snow_level=0)
-
-    return sectors_graph
 
 
 def get_edge_colors(graph, color, min_snow_level, max_snow_level):
@@ -240,10 +156,6 @@ def parcours_euler(montreal_graph):
             all_paths.extend(path)
 
         else:
-            print(
-                f"Composante non-eulérienne de taille {len(component)} - ajout d'arêtes"
-            )
-
             # Nœuds de degré impair dans cette composante
             odd_nodes = [n for n in subgraph.nodes() if subgraph.degree(n) % 2 == 1]
 
@@ -336,3 +248,13 @@ def afficher_chemin(graph, chemin):
     ax.set_title("Parcours Eulérien - Montréal")
     plt.tight_layout()
     plt.show()
+
+
+def calcul_cout(vehicule, distance_totale_km):
+    km_par_jour = vehicule.average_speed * 24
+    nb_jours = math.ceil(distance_totale_km / km_par_jour)
+    cout_temps = nb_jours * vehicule.cost_per_day
+    cout_distance = distance_totale_km * vehicule.cost_per_km
+    cout_total = cout_temps + cout_distance
+
+    return nb_jours, cout_total
